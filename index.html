@@ -11,7 +11,7 @@
         .header { margin-bottom: 24px; }
         .filter-card { background: var(--card); padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 24px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; }
-        select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
         .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .metric-card { background: var(--card); padding: 16px; border-radius: 8px; border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .metric-title { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
@@ -36,8 +36,9 @@
 
     <div id="dashboardContent" style="display: none;">
         <div class="filter-card">
-            <label for="itemSelect">Pilih Kode / Nama Barang:</label>
-            <select id="itemSelect" onchange="renderDashboard()"></select>
+            <label for="itemSearch">Cari Kode / Nama Barang:</label>
+            <input type="text" id="itemSearch" list="itemList" placeholder="Ketik untuk mencari (contoh: RMDI0106 atau Creamer)..." oninput="renderDashboard()">
+            <datalist id="itemList"></datalist>
         </div>
 
         <div class="summary-grid">
@@ -74,7 +75,6 @@
 </div>
 
 <script>
-
     const API_URL = "https://script.google.com/macros/s/AKfycbxDQEjl1fJixsZv9tmg0zit_jwvlGimq7enxvhrjS4WbzLwd8VcYVQvoFdbCVWWfLk0/exec";
 
     let rawStockData = [];
@@ -87,68 +87,87 @@
             document.getElementById("loading").style.display = "none";
             document.getElementById("dashboardContent").style.display = "block";
             
-            initDropdown();
+            initDatalist();
         } catch (error) {
             document.getElementById("loading").innerText = "Gagal memuat data. Pastikan URL Google Script benar.";
             console.error(error);
         }
     }
 
-    function initDropdown() {
-        const select = document.getElementById("itemSelect");
+    function initDatalist() {
+        const datalist = document.getElementById("itemList");
         const map = new Map();
 
         rawStockData.forEach(item => {
-            if(!map.has(item.kode)){
+            if (item.kode && !map.has(item.kode)) {
                 map.set(item.kode, item.nama);
             }
         });
 
-        select.innerHTML = "";
+        datalist.innerHTML = "";
+        let firstKode = "";
+        
         map.forEach((nama, kode) => {
+            if (!firstKode) firstKode = kode;
             const option = document.createElement("option");
             option.value = kode;
             option.textContent = `[${kode}] ${nama}`;
-            select.appendChild(option);
+            datalist.appendChild(option);
         });
+
+        if (firstKode) {
+            document.getElementById("itemSearch").value = firstKode;
+        }
 
         renderDashboard();
     }
 
     function renderDashboard() {
-        const selectedKode = document.getElementById("itemSelect").value;
+        const query = document.getElementById("itemSearch").value.trim().toLowerCase();
         const tbody = document.getElementById("stockTableBody");
         tbody.innerHTML = "";
 
-        const filteredData = rawStockData.filter(item => item.kode === selectedKode);
+        if (!query) {
+            document.getElementById("totalQty").innerText = "0";
+            document.getElementById("ptCount").innerText = "0 PT";
+            document.getElementById("unitType").innerText = "-";
+            return;
+        }
+
+        // Pencarian fleksibel: mencocokkan kode barang atau nama barang
+        const filteredData = rawStockData.filter(item => {
+            const kodeStr = String(item.kode || "").toLowerCase();
+            const namaStr = String(item.nama || "").toLowerCase();
+            return kodeStr === query || kodeStr.includes(query) || namaStr.includes(query);
+        });
 
         let totalQty = 0;
         const ptSet = new Set();
         let unitType = "-";
 
         filteredData.forEach(row => {
-            totalQty += Number(row.qty);
-            ptSet.add(row.pt);
-            unitType = row.unit;
+            totalQty += Number(row.qty || 0);
+            if (row.pt) ptSet.add(row.pt);
+            if (row.unit) unitType = row.unit;
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
-                <td><span class="badge">${row.pt}</span></td>
-                <td>${row.kode}</td>
-                <td>${row.nama}</td>
-                <td><strong>${row.qty}</strong></td>
-                <td>${row.unit}</td>
-                <td>${row.exp}</td>
+                <td><span class="badge">${row.pt || ''}</span></td>
+                <td>${row.kode || ''}</td>
+                <td>${row.nama || ''}</td>
+                <td><strong>${row.qty || 0}</strong></td>
+                <td>${row.unit || ''}</td>
+                <td>${row.exp || ''}</td>
             `;
             tbody.appendChild(tr);
         });
 
         document.getElementById("totalQty").innerText = totalQty.toLocaleString('id-ID');
         document.getElementById("ptCount").innerText = ptSet.size + " PT";
-        document.getElementById("unitType").innerText = unitType;
+        document.getElementById("unitType").innerText = filteredData.length > 0 ? unitType : "-";
     }
 
     window.onload = fetchData;
 </script>
 </body>
-</html>  
+</html>
