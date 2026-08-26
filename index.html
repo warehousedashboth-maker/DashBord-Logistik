@@ -141,6 +141,13 @@
             });
         }
 
+        // PERUBAHAN: Pengurutan data A - Z berdasarkan Nama Barang
+        filteredData.sort((a, b) => {
+            const namaA = String(a.nama || "").toLowerCase();
+            const namaB = String(b.nama || "").toLowerCase();
+            return namaA.localeCompare(namaB, 'id', { sensitivity: 'base' });
+        });
+
         let totalQty = 0;
         const ptSet = new Set();
         const unitSet = new Set();
