@@ -78,11 +78,16 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbxqFALIGHuo56kMoSZOLUs1V4R-s9q50hYXScHJRBhFU27261rMYWV_eb2LP2zkQX9J/exec";
 
     let rawStockData = [];
+    let masterData = [];
 
     async function fetchData() {
         try {
             const response = await fetch(API_URL);
-            rawStockData = await response.json();
+            const resData = await response.json();
+            
+            // Memisahkan data master dan data stok dari response
+            masterData = resData.master || [];
+            rawStockData = resData.stock || [];
             
             document.getElementById("loading").style.display = "none";
             document.getElementById("dashboardContent").style.display = "block";
@@ -96,27 +101,18 @@
 
     function initDatalist() {
         const datalist = document.getElementById("itemList");
-        const map = new Map();
-
-        rawStockData.forEach(item => {
-            if (item.kode && !map.has(item.kode)) {
-                map.set(item.kode, item.nama);
-            }
-        });
-
         datalist.innerHTML = "";
-        let firstKode = "";
         
-        map.forEach((nama, kode) => {
-            if (!firstKode) firstKode = kode;
+        // Mengisi pilihan datalist murni dari Master Data
+        masterData.forEach(item => {
             const option = document.createElement("option");
-            option.value = kode;
-            option.textContent = `[${kode}] ${nama}`;
+            option.value = item.kode;
+            option.textContent = `[${item.kode}] ${item.nama}`;
             datalist.appendChild(option);
         });
 
-        if (firstKode) {
-            document.getElementById("itemSearch").value = firstKode;
+        if (masterData.length > 0) {
+            document.getElementById("itemSearch").value = masterData[0].kode;
         }
 
         renderDashboard();
@@ -134,11 +130,17 @@
             return;
         }
 
-        // Pencarian fleksibel: mencocokkan kode barang atau nama barang
+        // Cari item dari master data untuk kecocokan kode/nama
+        const matchedMaster = masterData.filter(m => 
+            m.kode.toLowerCase().includes(query) || 
+            m.nama.toLowerCase().includes(query)
+        );
+        const matchedKodes = matchedMaster.map(m => m.kode.toLowerCase());
+
+        // Filter data stok berdasarkan kode barang yang cocok
         const filteredData = rawStockData.filter(item => {
             const kodeStr = String(item.kode || "").toLowerCase();
-            const namaStr = String(item.nama || "").toLowerCase();
-            return kodeStr === query || kodeStr.includes(query) || namaStr.includes(query);
+            return matchedKodes.includes(kodeStr) || kodeStr === query;
         });
 
         let totalQty = 0;
