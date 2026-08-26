@@ -111,9 +111,8 @@
             datalist.appendChild(option);
         });
 
-        if (masterData.length > 0) {
-            document.getElementById("itemSearch").value = masterData[0].kode;
-        }
+        // Kosongkan pencarian di awal agar menampilkan total keseluruhan
+        document.getElementById("itemSearch").value = "";
 
         renderDashboard();
     }
@@ -123,32 +122,33 @@
         const tbody = document.getElementById("stockTableBody");
         tbody.innerHTML = "";
 
+        let filteredData = [];
+
+        // JIKA PENCARIAN KOSONG: Ambil seluruh data stok
         if (!query) {
-            document.getElementById("totalQty").innerText = "0";
-            document.getElementById("ptCount").innerText = "0 PT";
-            document.getElementById("unitType").innerText = "-";
-            return;
+            filteredData = rawStockData;
+        } else {
+            // JIKA ADA PENCARIAN: Filter data berdasarkan kode/nama
+            const matchedMaster = masterData.filter(m => 
+                m.kode.toLowerCase().includes(query) || 
+                m.nama.toLowerCase().includes(query)
+            );
+            const matchedKodes = matchedMaster.map(m => m.kode.toLowerCase());
+
+            filteredData = rawStockData.filter(item => {
+                const kodeStr = String(item.kode || "").toLowerCase();
+                return matchedKodes.includes(kodeStr) || kodeStr === query;
+            });
         }
-
-        const matchedMaster = masterData.filter(m => 
-            m.kode.toLowerCase().includes(query) || 
-            m.nama.toLowerCase().includes(query)
-        );
-        const matchedKodes = matchedMaster.map(m => m.kode.toLowerCase());
-
-        const filteredData = rawStockData.filter(item => {
-            const kodeStr = String(item.kode || "").toLowerCase();
-            return matchedKodes.includes(kodeStr) || kodeStr === query;
-        });
 
         let totalQty = 0;
         const ptSet = new Set();
-        let unitType = "-";
+        const unitSet = new Set();
 
         filteredData.forEach(row => {
             totalQty += Number(row.qty || 0);
             if (row.pt) ptSet.add(row.pt);
-            if (row.unit) unitType = row.unit;
+            if (row.unit) unitSet.add(row.unit);
 
             const tr = document.createElement("tr");
             tr.innerHTML = `
@@ -163,9 +163,18 @@
             tbody.appendChild(tr);
         });
 
+        // Update ringkasan metric
         document.getElementById("totalQty").innerText = totalQty.toLocaleString('id-ID');
         document.getElementById("ptCount").innerText = ptSet.size + " PT";
-        document.getElementById("unitType").innerText = filteredData.length > 0 ? unitType : "-";
+
+        // Tampilkan informasi satuan unit secara dinamis
+        if (unitSet.size === 0) {
+            document.getElementById("unitType").innerText = "-";
+        } else if (unitSet.size === 1) {
+            document.getElementById("unitType").innerText = Array.from(unitSet)[0];
+        } else {
+            document.getElementById("unitType").innerText = unitSet.size + " Jenis Unit";
+        }
     }
 
     window.onload = fetchData;
