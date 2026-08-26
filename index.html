@@ -21,6 +21,7 @@
         th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
         th { background: #f8fafc; color: #475569; }
         .badge { background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85rem; }
+        .badge-kategori { background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85rem; }
         #loading { text-align: center; font-weight: bold; padding: 20px; color: var(--primary); }
     </style>
 </head>
@@ -37,7 +38,7 @@
     <div id="dashboardContent" style="display: none;">
         <div class="filter-card">
             <label for="itemSearch">Cari Kode / Nama Barang:</label>
-            <input type="text" id="itemSearch" list="itemList" placeholder="Ketik untuk mencari (contoh: RMDI0106 atau Creamer)..." oninput="renderDashboard()">
+            <input type="text" id="itemSearch" list="itemList" placeholder="Ketik untuk mencari (contoh: GRBA0027 atau Mushroom)..." oninput="renderDashboard()">
             <datalist id="itemList"></datalist>
         </div>
 
@@ -63,6 +64,7 @@
                         <th>PT / Tab Sheet</th>
                         <th>Kode Barang</th>
                         <th>Nama Barang</th>
+                        <th>Kategori</th>
                         <th>Jumlah (Qty)</th>
                         <th>Unit</th>
                         <th>Expired Date</th>
@@ -75,7 +77,7 @@
 </div>
 
 <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxqFALIGHuo56kMoSZOLUs1V4R-s9q50hYXScHJRBhFU27261rMYWV_eb2LP2zkQX9J/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycby6q8MGjEHG-ds-sgn3Na0xawiXJsQl7TZC0J75N0cIxjpTpbomTq1hpusxEJv1DzwM/exec";
 
     let rawStockData = [];
     let masterData = [];
@@ -85,7 +87,6 @@
             const response = await fetch(API_URL);
             const resData = await response.json();
             
-            // Memisahkan data master dan data stok dari response
             masterData = resData.master || [];
             rawStockData = resData.stock || [];
             
@@ -103,7 +104,6 @@
         const datalist = document.getElementById("itemList");
         datalist.innerHTML = "";
         
-        // Mengisi pilihan datalist murni dari Master Data
         masterData.forEach(item => {
             const option = document.createElement("option");
             option.value = item.kode;
@@ -130,14 +130,12 @@
             return;
         }
 
-        // Cari item dari master data untuk kecocokan kode/nama
         const matchedMaster = masterData.filter(m => 
             m.kode.toLowerCase().includes(query) || 
             m.nama.toLowerCase().includes(query)
         );
         const matchedKodes = matchedMaster.map(m => m.kode.toLowerCase());
 
-        // Filter data stok berdasarkan kode barang yang cocok
         const filteredData = rawStockData.filter(item => {
             const kodeStr = String(item.kode || "").toLowerCase();
             return matchedKodes.includes(kodeStr) || kodeStr === query;
@@ -157,6 +155,7 @@
                 <td><span class="badge">${row.pt || ''}</span></td>
                 <td>${row.kode || ''}</td>
                 <td>${row.nama || ''}</td>
+                <td><span class="badge-kategori">${row.kategori || '-'}</span></td>
                 <td><strong>${row.qty || 0}</strong></td>
                 <td>${row.unit || ''}</td>
                 <td>${row.exp || ''}</td>
